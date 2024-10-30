@@ -1,0 +1,58 @@
+include gro
+
+set ("dt", 0.1);
+set ("population_max", 2000000);
+
+set ("signals",1.0);
+set ("signals_draw", 1.0); // Como esta en 1 se ve las señales, (arabinosa y AHL)
+
+grid("continuous", "gro_original", 10, 10, 8);
+// kdeg = degradacion de la señal
+s1 := s_signal([kdiff := 0.5, kdeg := 0.005]); // arabinosa
+s2 := s_signal([kdiff := 0.5, kdeg := 0.65]); // AHL
+
+//Genes y operones
+
+genes([	
+            name := "Generar_AHL",
+            proteins := {"G_AHL"},
+            promoter := [
+            function := "NOT",
+            transcription_factors := {"arac"},
+            noise := [toOff := 0.001, toOn := 0.001, noise_time := 100.0]],
+            prot_act_times := [times := {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,15.0}, variabilities := {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2.0}],
+            prot_deg_times := [times := {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.0}, variabilities := {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0}]]);
+
+genes([		
+            name := "OperonGfp",
+			proteins := {"1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","gfp"},
+			promoter := [
+            function := "AND",
+			transcription_factors := {"ahl","arac"},
+			noise := [toOff := 0.001, toOn := 0.001, noise_time:= 100.0]],
+			prot_act_times := [times := {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 15.0}, variabilities := {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2.0}],
+			prot_deg_times := [times := {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  1.0}, variabilities := {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0}]]);
+
+plasmids_genes ([ pEdge := {"Generar_AHL","OperonGfp"}]);
+
+// Acciones
+action({},"s_get_QS", {tostring(s1), ">", "0.5", "arac"}); // Cuando hay mas de 0.5 de concentracion de arabinosa 
+action({"G_AHL"}, "s_emit_signal", {tostring(s2), "2", "exact"}); // Emite AHL
+action({},"s_get_QS", {tostring(s2), ">", "0.5", "ahl"}); // Cuando hay mas de 0.5 de concentracion de AHL
+action({"gfp"}, "d_paint", {"1", "0", "0", "0"});
+action({"-gfp"}, "d_paint", {"-1", "0", "0", "0"});
+action({}, "set_growth_rate", {"0.017"});
+
+// Iniciar simulacion
+program p() :=
+{
+    skip();
+};
+program main() :=
+{
+    true:
+    {
+        s_set_signal(s1, 10, 0.0, 0.0);
+    }
+    c_ecolis(1000, 0, 0, 80, {"pEdge"}, program p());
+};
